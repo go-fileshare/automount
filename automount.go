@@ -120,7 +120,8 @@ func mountWith(ctx context.Context, b backend, s Share, o Options) (*Mounted, er
 }
 
 // Path is where the share is reachable: a directory on macOS and Linux, a
-// drive root such as `Z:\` on Windows.
+// drive root such as `Z:\` on Windows. On Linux, when gvfs-fuse is not serving
+// the session, it is the smb:// URI, which GIO opens and os calls do not.
 func (m *Mounted) Path() string { return m.path }
 
 // Unmount unmounts the share. It is safe to call twice; the second call does

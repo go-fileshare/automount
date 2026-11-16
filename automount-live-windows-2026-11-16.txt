@@ -1,0 +1,25 @@
+automount live run on Windows 11: measured, as an ADMINISTRATOR
+============================================================
+
+Date: 2026-11-16 22:25 CET
+Machine: Windows 11 Pro 25H2 10.0.26200 arm64 (QEMU/HVF), the VM of go-mswin/win32's proofs, ssh logon as the local administrator reader (IsInRole(Administrator) = True).
+Go: test binary cross-built on the Mac (GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go test -c, Go 1.27.4), copied with scp.
+Server: github.com/go-filesystems/smb v0.13.0 in the test process, 127.0.0.1:<random port>, share "share", user alice.
+Backend: github.com/go-mswin/win32 v0.7.0 (MSFT_SmbMapping.Create). The facade prefixes the user with .\ itself.
+Command (PowerShell, quoted flags): $env:AUTOMOUNT_REAL="1"; & .utomount-windows.test.exe "-test.v" "-test.count=1" "-test.run=TestLiveMount"
+
+NOT the standard user: the request was to run as the standard user std. Its password is not recorded anywhere I could read, ssh key logon is refused for it, and installing a key for it was refused by the permission system, so this run is as the administrator. MapSMB as a standard user is measured separately in go-mswin/win32 (win32-mapsmb-standard-user-proof-2026-11-16.txt).
+Session caveat: an ssh logon has its own logon session, so the drive letter is not visible to Explorer's "This PC" here; the test checks the letter through os calls inside the same session.
+
+Asserted: a wrong password fails and errors.As reaches *win32.SMBPortError, the message does not contain the password; the right password maps the highest free letter (Z:) and Path() is Z:\; a server file reads through Z:\; a file written through it is held by the server; Unmount (CancelConnection) succeeds, a second Unmount is a no-op, the files are gone and Z:\ disappears. Get-PSDrive lists C and D before and after.
+
+Output:
+X11 forwarding request failed on channel 0
+=== RUN   TestLiveMount
+    live_test.go:68: wrong password: automount: mount smb://127.0.0.1:50088/share: win32: MSFT_SmbMapping.Create: HRESULT 0x80041001 Win32 86: The specified network password is not correct.  (backend sentinel reached: true)
+    live_test.go:78: mounted smb://127.0.0.1:50088/share at Z:\
+    live_test.go:106: mountpoint Z:\ gone 0s after Unmount
+--- PASS: TestLiveMount (0.11s)
+PASS
+exit=0
+drives after: C,D

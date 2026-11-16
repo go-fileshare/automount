@@ -1,0 +1,58 @@
+automount live run on Linux (GNOME gvfs, headless session): measured
+=================================================================
+
+Date: 2026-11-16 22:28 CET
+Host: fractal, Ubuntu 24.04.5 LTS
+x86_64 , gvfs 1.54.4-0ubuntu1~24.04.5, load average 0.13 (a functional run, nothing here is a timing).
+Go: the test binary is cross-built on the Mac (GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c, Go 1.27.4); the host's Go 1.22 is too old.
+Server: github.com/go-filesystems/smb v0.13.0 in the test process, 127.0.0.1:<random port>, share "share", user alice, in-memory filesystem.
+Backend: github.com/go-freedesktop/gvfs v0.1.1.
+
+Session: there is no desktop session for this run, so it is the headless mechanism: dbus-run-session starts a private session bus, and gvfsd, gvfsd-smb and gvfsd-fuse are D-Bus-activated in it. The host also runs the real desktop session's gvfsd-fuse on /run/user/1000/gvfs, so the private session gets its own XDG_RUNTIME_DIR (a 0700 directory) and its gvfsd-fuse mounts there.
+Command: cd ~/automount-live && XDG_RUNTIME_DIR=$HOME/automount-live/run AUTOMOUNT_REAL=1 dbus-run-session -- ./automount-linux.test -test.v -test.count=1 -test.run TestLiveMount
+
+Asserted: a wrong password fails with errors.Is(err, gvfs.ErrAuthFailed), no dialog, and the error does not contain the password; the right password mounts and Path() is the gvfs-fuse path; a server file reads through Path(); a file written through Path() is held by the server; Unmount succeeds, a second Unmount is a no-op, the files are gone and the path disappears.
+
+Output:
+ 22:28:41 up 65 days,  8:24,  4 users,  load average: 0,13, 0,77, 0,81
+=== RUN   TestLiveMount
+dbus-daemon[1332517]: [session uid=1000 pid=1332517] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=1000 pid=1332518 comm="./automount-linux.test -test.v -test.count=1 -test" label="unconfined")
+dbus-daemon[1332517]: [session uid=1000 pid=1332517] Successfully activated service 'org.gtk.vfs.Daemon'
+Kerberos auth with 'next@WORKGROUP' (WORKGROUP\next) to access '127.0.0.1' not possible
+dbus-daemon[1332517]: [session uid=1000 pid=1332517] Activating service name='org.freedesktop.secrets' requested by ':1.4' (uid=1000 pid=1332531 comm="/usr/libexec/gvfsd-smb --spawner :1.1 /org/gtk/gvf" label="unconfined")
+** Message: 22:28:41.116: couldn't access control socket: /home/next/automount-live/run/keyring/control: No such file or directory
+discover_other_daemon: 0dbus-daemon[1332517]: [session uid=1000 pid=1332517] Successfully activated service 'org.freedesktop.secrets'
+    live_test.go:68: wrong password: automount: mount smb://127.0.0.1:44983/share: gvfs: mount smb://127.0.0.1:44983/share: Password dialog cancelled
+        gvfs: credentials refused (backend sentinel reached: true)
+Kerberos auth with 'next@WORKGROUP' (WORKGROUP\next) to access '127.0.0.1' not possible
+    live_test.go:78: mounted smb://127.0.0.1:44983/share at /home/next/automount-live/run/gvfs/smb-share:port=44983,server=127.0.0.1,share=share
+    live_test.go:106: mountpoint /home/next/automount-live/run/gvfs/smb-share:port=44983,server=127.0.0.1,share=share gone 0s after Unmount
+--- PASS: TestLiveMount (0.06s)
+PASS
+exit=0
+A connection to the bus can't be made
+A connection to the bus can't be made
+A connection to the bus can't be made
+
+A defect found by this measurement (fixed in go-freedesktop/gvfs v0.1.1, PR 2)
+-------------------------------------------------------------------------------
+The first run used the default XDG_RUNTIME_DIR, where the desktop session's gvfsd-fuse already owns /run/user/1000/gvfs: the private session's gvfs-fuse could not mount (fusermount3: failed to access mountpoint, Permission denied), ListMounts2 returned an empty FusePath and a DefaultLocation of "/" (the root inside the mount), and gvfs v0.1.0 returned "/" as the path: the host's root directory. gvfs v0.1.1 returns the URI in that case. With gvfs v0.1.1 and the default XDG_RUNTIME_DIR the output is:
+
+=== RUN   TestLiveMount
+dbus-daemon[1332731]: [session uid=1000 pid=1332731] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=1000 pid=1332736 comm="./automount-linux.test -test.v -test.count=1 -test" label="unconfined")
+dbus-daemon[1332731]: [session uid=1000 pid=1332731] Successfully activated service 'org.gtk.vfs.Daemon'
+fusermount3: failed to access mountpoint /run/user/1000/gvfs: Permission denied
+Kerberos auth with 'next@WORKGROUP' (WORKGROUP\next) to access '127.0.0.1' not possible
+dbus-daemon[1332731]: [session uid=1000 pid=1332731] Activating service name='org.freedesktop.secrets' requested by ':1.3' (uid=1000 pid=1332754 comm="/usr/libexec/gvfsd-smb --spawner :1.1 /org/gtk/gvf" label="unconfined")
+GNOME_KEYRING_CONTROL=/run/user/1000/keyring
+SSH_AUTH_SOCK=/run/user/1000/keyring/ssh
+discover_other_daemon: 1    live_test.go:78: mounted smb://127.0.0.1:35611/share at smb://127.0.0.1:35611/share
+    live_linux_test.go:19: path "smb://127.0.0.1:35611/share" is not a gvfs location
+    live_test.go:83: read server file: "", open smb:/127.0.0.1:35611/share/hello.txt: no such file or directory
+    live_test.go:87: write through the mount: open smb:/127.0.0.1:35611/share/back.txt: no such file or directory
+--- FAIL: TestLiveMount (25.06s)
+FAIL
+A connection to the bus can't be made
+A connection to the bus can't be made
+
+That run fails by design (the location is reachable through GIO, not through os calls); it shows Path() is the URI and not "/". It also took 25 s to mount against 0.06 s with a private runtime directory; the cause was not investigated.
