@@ -132,7 +132,10 @@ jobs:
       - run: go test -count=1 ./...
         env:
           CGO_ENABLED: 0
-      - run: go test -count=1 -coverprofile=cover.out .
+      # bash, because PowerShell splits -coverprofile=cover.out at the dot.
+      - name: Coverage
+        shell: bash
+        run: go test -count=1 -coverprofile=cover.out .
         env:
           CGO_ENABLED: 0
       - name: 100% coverage gate
