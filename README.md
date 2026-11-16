@@ -68,14 +68,26 @@ reaches `netfs.ErrAuth`, `gvfs.ErrAuthFailed` and `errors.As` reaches
   runs in the test process on `127.0.0.1:<random port>`; the facade mounts it,
   a file is read and written through `Path()`, `Unmount` removes the volume.
   A wrong password fails with `netfs.ErrAuth`. Run it with
-  `AUTOMOUNT_REAL=1 gotest -count=1 -run TestLiveMount .`.
-* **Linux: not measured** here (the unit tests replace the GVfs calls). The
-  GVfs backend has its own tests.
-* **Windows: not measured** here (the unit tests replace the win32 calls). The
-  `MapSMB` call as a standard user is measured in
-  [go-mswin/win32](https://github.com/go-mswin/win32)
-  (`win32-mapsmb-standard-user-proof-2026-11-16.txt`); a mapping made from an
-  interactive desktop session was not.
+  `AUTOMOUNT_REAL=1 gotest -count=1 -run TestLiveMount .` (the same test runs
+  on all three platforms).
+* **Linux (Ubuntu 24.04, gvfs 1.54.4): measured** in a headless session
+  (`dbus-run-session` with a private `XDG_RUNTIME_DIR`, gvfsd, gvfsd-smb and
+  gvfsd-fuse D-Bus-activated), see
+  [automount-live-linux-2026-11-16.txt](automount-live-linux-2026-11-16.txt):
+  the same sequence as on macOS, wrong password reaching `gvfs.ErrAuthFailed`.
+  Not measured: a real GNOME desktop session. The run found a defect in
+  go-freedesktop/gvfs v0.1.0 (`/` returned as the path when gvfs-fuse is not
+  serving the session), fixed in v0.1.1. When gvfs-fuse is not serving the
+  session, `Path()` is the `smb://` URI, which GIO can open and `os` calls
+  cannot.
+* **Windows 11 25H2 (arm64, QEMU): measured as an administrator**, see
+  [automount-live-windows-2026-11-16.txt](automount-live-windows-2026-11-16.txt):
+  map `Z:`, read and write through it, unmount, `Z:` gone. Not measured: the
+  run as a standard user (`MapSMB` itself as a standard user is measured in
+  [go-mswin/win32](https://github.com/go-mswin/win32),
+  `win32-mapsmb-standard-user-proof-2026-11-16.txt`), and the letter's
+  appearance in Explorer's "This PC": an ssh logon has its own logon session,
+  so the check is through `os` calls in the same session.
 
 The package is held to 100 % statement coverage on macOS, Linux and Windows in
 CI; every OS call sits behind a package-level variable.
