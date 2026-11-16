@@ -1,10 +1,10 @@
 automount live run on macOS: measured
 ======================================
 
-Date: 2026-11-16 20:48 CET
-Machine: macOS 27.2.1 (26B131), arm64; load average at the time ~9 (a functional run, nothing here is a timing).
+Date: 2026-11-16 21:23 CET
+Machine: macOS 27.2.1 (26B131), arm64; 1-min load { 3.76 4.72 8.18 } (a functional run, nothing here is a timing).
 Go: go version go1.27.4 darwin/arm64
-Server: github.com/go-filesystems/smb v0.12.0 in the test process, 127.0.0.1:<random port>, share "share", user alice (smb.AllowUsers), in-memory filesystem.
+Server: github.com/go-filesystems/smb v0.13.0 in the test process, 127.0.0.1:<random port>, share "share", user alice (smb.AllowUsers), in-memory filesystem.
 Backend: github.com/go-macos/netfs v0.1.0 (NoUI).
 Command: AUTOMOUNT_REAL=1 CGO_ENABLED=0 gotest -count=1 -run TestLiveMount .
 
@@ -13,9 +13,9 @@ Asserted: wrong password fails with errors.Is(err, netfs.ErrAuth) and no dialog,
 Output:
 gotest: added -v, because only -v prints which tests ran
 === RUN   TestLiveMount
-    live_darwin_test.go:67: wrong password: automount: mount smb://127.0.0.1:51349/share: netfs: mount: authentication error (errno 80) (netfs.ErrAuth=true)
-    live_darwin_test.go:73: mounted smb://127.0.0.1:51349/share at /Volumes/share
+    live_darwin_test.go:67: wrong password: automount: mount smb://127.0.0.1:57770/share: netfs: mount: authentication error (errno 80) (netfs.ErrAuth=true)
+    live_darwin_test.go:73: mounted smb://127.0.0.1:57770/share at /Volumes/share
     live_darwin_test.go:103: mountpoint /Volumes/share gone 51ms after Unmount
---- PASS: TestLiveMount (2.35s)
+--- PASS: TestLiveMount (0.55s)
 PASS
-ok  	github.com/go-fileshare/automount	2.564s
+ok  	github.com/go-fileshare/automount	0.743s
