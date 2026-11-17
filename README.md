@@ -80,14 +80,16 @@ reaches `netfs.ErrAuth`, `gvfs.ErrAuthFailed` and `errors.As` reaches
   serving the session), fixed in v0.1.1. When gvfs-fuse is not serving the
   session, `Path()` is the `smb://` URI, which GIO can open and `os` calls
   cannot.
-* **Windows 11 25H2 (arm64, QEMU): measured as an administrator**, see
+* **Windows 11 25H2 (arm64, QEMU): measured as a standard user and as an
+  administrator.** As the standard user `std` (Users only, Medium Mandatory
+  Level, not elevated), see
+  [automount-live-windows-std-2026-11-17.txt](automount-live-windows-std-2026-11-17.txt),
+  and as an administrator,
   [automount-live-windows-2026-11-16.txt](automount-live-windows-2026-11-16.txt):
-  map `Z:`, read and write through it, unmount, `Z:` gone. Not measured: the
-  run as a standard user (`MapSMB` itself as a standard user is measured in
-  [go-mswin/win32](https://github.com/go-mswin/win32),
-  `win32-mapsmb-standard-user-proof-2026-11-16.txt`), and the letter's
-  appearance in Explorer's "This PC": an ssh logon has its own logon session,
-  so the check is through `os` calls in the same session.
+  wrong password reaching `*win32.SMBPortError`, map `Z:`, read and write
+  through it, unmount, `Z:` gone. Not measured: the letter's appearance in
+  Explorer's "This PC": an ssh logon has its own logon session, so the check
+  is through `os` calls in the same session.
 
 The package is held to 100 % statement coverage on macOS, Linux and Windows in
 CI; every OS call sits behind a package-level variable.

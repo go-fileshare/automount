@@ -1,0 +1,42 @@
+automount live run on Windows 11 as a STANDARD user: measured
+===========================================================
+
+Date: 2026-11-17 15:07 CET
+Machine: Windows 11 Pro 25H2 10.0.26200 arm64 (QEMU/HVF), the VM of go-mswin/win32's proofs.
+Account: desktop-k7lsb8o\std, a local user in Users only (whoami /groups below: no Administrators, Medium Mandatory Level, elevated: False). Logon: ssh with a dedicated key installed by vmkey v0.132.0 (go-fleettools/fleettools), no password.
+Go: test binary cross-built on the Mac (GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go test -c, Go 1.27.4), copied with scp.
+Server: github.com/go-filesystems/smb v0.13.0 in the test process, 127.0.0.1:<random port>, share "share", user alice.
+Backend: github.com/go-mswin/win32 v0.7.0 (MSFT_SmbMapping.Create); the facade prefixes the user with .\ itself.
+Command (PowerShell, quoted flags): $env:AUTOMOUNT_REAL="1"; & .utomount-windows.test.exe "-test.v" "-test.count=1" "-test.run=TestLiveMount"
+
+Session caveat: an ssh logon has its own logon session, so the drive letter is NOT visible to Explorer's "This PC" from here; that was not checked. The test checks the letter through os calls inside the same session.
+
+Asserted: a wrong password fails and errors.As reaches *win32.SMBPortError, the message does not contain the password; the right password maps the highest free letter (Z:) and Path() is Z:\; a server file reads through Z:\; a file written through it is held by the server; Unmount succeeds, a second Unmount is a no-op, the files are gone and Z:\ disappears.
+
+Output:
+X11 forwarding request failed on channel 0
+desktop-k7lsb8o\std
+
+GROUP INFORMATION
+-----------------
+
+Group Name                             Type             SID          Attributes                                        
+====================================== ================ ============ ==================================================
+Everyone                               Well-known group S-1-1-0      Mandatory group, Enabled by default, Enabled group
+BUILTIN\Users                          Alias            S-1-5-32-545 Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NETWORK                   Well-known group S-1-5-2      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users       Well-known group S-1-5-11     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\This Organization         Well-known group S-1-5-15     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Local account             Well-known group S-1-5-113    Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NTLM Authentication       Well-known group S-1-5-64-10  Mandatory group, Enabled by default, Enabled group
+Mandatory Label\Medium Mandatory Level Label            S-1-16-8192                                                    
+elevated: False
+drives before: C,D
+=== RUN   TestLiveMount
+    live_test.go:68: wrong password: automount: mount smb://127.0.0.1:53642/share: win32: MSFT_SmbMapping.Create: HRESULT 0x80041001 Win32 86: The specified network password is not correct.  (backend sentinel reached: true)
+    live_test.go:78: mounted smb://127.0.0.1:53642/share at Z:\
+    live_test.go:106: mountpoint Z:\ gone 0s after Unmount
+--- PASS: TestLiveMount (0.11s)
+PASS
+exit=0
+drives after: C,D
