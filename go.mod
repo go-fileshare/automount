@@ -4,7 +4,7 @@ go 1.27.4
 
 require (
 	github.com/go-filesystems/interface v0.6.0
-	github.com/go-filesystems/smb v0.13.0
+	github.com/go-filesystems/smb v0.17.0
 	github.com/go-freedesktop/gvfs v0.1.1
 	github.com/go-macos/netfs v0.1.0
 	github.com/go-mswin/win32 v0.7.0
